@@ -4,20 +4,55 @@
 int main(void) {
 	char * mpqFile = _strdup("Battle.net.mpq");
 	char * targetFile = _strdup("resources\\play\\GameTabList.qml");
-	char * resultingFile = _strdup("GameTabList.qml");
+	char * resultingFile = _strdup("GameTabListOld.qml");
+	char * finishedFile = _strdup("GameTabList.qml");
 	
+	//Find .mpq file
 	string highestVersionFolder = findNewestVersionFolder();
 	string targetString = highestVersionFolder + "\\" + mpqFile;
 	char* targetMPQFile = _strdup(targetString.c_str());
 
 	cout << "Target has been identified as " << endl << targetString << endl;
+	//Extract GameTabList.qml for editing
 	ExtractFile(targetMPQFile, targetFile, resultingFile);
+
+	//Edit GameTabList.qml
+	removeActivisionGames(GetExeDir() + resultingFile, GetExeDir() + finishedFile);
+
+	//Write changed GameTabList.qml back into the .mpq archive
 
 	free(mpqFile);
 	free(targetFile);
 	free(resultingFile);
+	free(finishedFile);
 	free(targetMPQFile);
+	
 
+	return 0;
+}
+
+bool removeActivisionGames(string sourceQMLFile, string targetQMLFile) {
+	string searchString = "visible:{return gameController.activisionProductsModel.count>0";
+	string replaceString = "visible:{return false";//"visible:{return false";
+
+	ifstream filein(sourceQMLFile, ios::in);
+	ifstream fileout(targetQMLFile, ios::trunc);
+	
+	filein >> noskipws;
+
+	if (!filein.is_open() || !filein) {
+		return -1;
+	}
+	
+	int foundAtPos = -1;
+	string buffer;
+
+	getline(filein, buffer);
+	cout << buffer;
+	foundAtPos = buffer.find_first_of(searchString);
+
+	//TODO: Replace part and store buffer to file
+	
 	return 0;
 }
 
@@ -54,7 +89,6 @@ string GetExeDir() {
 	{
 		strExe = filename;
 	}
-	cout << "File has been placed at " << endl << strExe << endl;
 	int cutOff = strExe.find_last_of('\\');
 	return strExe.substr(0, cutOff+1);
 }
