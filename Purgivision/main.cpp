@@ -15,45 +15,55 @@ int main(void) {
 	cout << "Target has been identified as " << endl << targetString << endl;
 	//Extract GameTabList.qml for editing
 	ExtractFile(targetMPQFile, targetFile, resultingFile);
+	
+	//If editing GameTabList.qml works
+	if (removeActivisionGames(resultingFile, finishedFile)) {
 
-	//Edit GameTabList.qml
-	removeActivisionGames(GetExeDir() + resultingFile, GetExeDir() + finishedFile);
-
-	//Write changed GameTabList.qml back into the .mpq archive
-
+		//Write changed GameTabList.qml back into the .mpq archive
+		WriteFile(targetMPQFile, targetFile, finishedFile);
+	}
+	
 	free(mpqFile);
 	free(targetFile);
 	free(resultingFile);
 	free(finishedFile);
 	free(targetMPQFile);
 	
+	
 
 	return 0;
 }
 
 bool removeActivisionGames(string sourceQMLFile, string targetQMLFile) {
-	string searchString = "visible:{return gameController.activisionProductsModel.count>0";
-	string replaceString = "visible:{return false";//"visible:{return false";
+	string searchString = "return gameController.activisionProductsModel.count>0";
+	string replaceString = "return false";//"visible:{return false";
 
 	ifstream filein(sourceQMLFile, ios::in);
-	ifstream fileout(targetQMLFile, ios::trunc);
+	ofstream fileout(targetQMLFile, ios::trunc);
 	
 	filein >> noskipws;
 
 	if (!filein.is_open() || !filein) {
-		return -1;
+		return false;
 	}
 	
 	int foundAtPos = -1;
 	string buffer;
 
 	getline(filein, buffer);
+	filein.close();
 	cout << buffer;
-	foundAtPos = buffer.find_first_of(searchString);
-
-	//TODO: Replace part and store buffer to file
+	foundAtPos = buffer.find(searchString);
+	buffer.replace(foundAtPos, searchString.length(), replaceString);
 	
-	return 0;
+	if (!fileout.is_open() || !fileout) {
+		return false;
+	}
+	
+	fileout << buffer;
+	fileout.close();
+
+	return true;
 }
 
 string findNewestVersionFolder() {
@@ -76,7 +86,6 @@ vector<string> getSubDirs(const std::string& s)
 	std::vector<string> r;
 	for (auto& p : directory_iterator(s))
 		if (p.status().type() == file_type::directory) {
-			cout << "Identified subdirectory " << p.path().string() << endl;
 			r.push_back(p.path().string());
 		}
 	return r;
@@ -101,21 +110,28 @@ string GetExeDir() {
 //   char * szArchiveName  - Archive file name
 //   char * szArchivedFile - Name/number of archived file.
 //   char * szFileName     - Name of the target disk file.
-static int ModifyFile(char * szFileName) {
-
-}
-
-//-----------------------------------------------------------------------------
-// Opens an archived file and writes a file into it.
-//
-// Parameters :
-//
-//   char * szArchiveName  - Archive file name
-//   char * szArchivedFile - Name/number of archived file.
-//   char * szFileName     - Name of the target disk file.
 
 static int WriteFile(char * szArchiveName, char * szArchivedFile, char * szFileName) {
+	HANDLE hMpq = NULL;          // Open archive handle
 
+	int    nError = ERROR_SUCCESS; // Result value
+
+	if (nError == ERROR_SUCCESS)
+	{
+		if (!SFileOpenArchive(szArchiveName, 0, 0, &hMpq))
+			nError = GetLastError();
+	}
+
+	if (nError == ERROR_SUCCESS) {
+		if (!SFileAddFileEx(hMpq, szFileName, szArchivedFile, MPQ_FILE_REPLACEEXISTING, MPQ_COMPRESSION_HUFFMANN, MPQ_COMPRESSION_NEXT_SAME)) {
+			nError = GetLastError();
+		}
+	}
+	
+	if (hMpq != NULL)
+		SFileCloseArchive(hMpq);
+
+	return nError;
 }
 
 //-----------------------------------------------------------------------------
